@@ -26,7 +26,8 @@ const PostgresPersistence_1 = require("./PostgresPersistence");
 
  * ### Configuration parameters ###
  *
- * - collection:                  (optional) PostgreSQL collection name
+ * - table:                      (optional) PostgreSQL table name
+ * - schema:                     (optional) PostgreSQL schema name
  * - connection(s):
  *   - discovery_key:             (optional) a key to retrieve the connection from [[https://pip-services3-nodex.github.io/pip-services3-components-nodex/interfaces/connect.idiscovery.html IDiscovery]]
  *   - host:                      host name or IP address
@@ -93,13 +94,11 @@ class IdentifiablePostgresPersistence extends PostgresPersistence_1.PostgresPers
     /**
      * Creates a new instance of the persistence component.
      *
-     * @param collection    (optional) a collection name.
+     * @param tableName    (optional) a table name.
+     * @param schemaName   (optional) a schema name.
      */
-    constructor(tableName) {
-        super(tableName);
-        if (tableName == null) {
-            throw new Error("Table name could not be null");
-        }
+    constructor(tableName, schemaName) {
+        super(tableName, schemaName);
     }
     /**
      * Converts the given object from the public partial format.
@@ -120,7 +119,7 @@ class IdentifiablePostgresPersistence extends PostgresPersistence_1.PostgresPers
     getListByIds(correlationId, ids) {
         return __awaiter(this, void 0, void 0, function* () {
             let params = this.generateParameters(ids);
-            let query = "SELECT * FROM " + this.quoteIdentifier(this._tableName)
+            let query = "SELECT * FROM " + this.quotedTableName()
                 + " WHERE \"id\" IN(" + params + ")";
             let items = yield new Promise((resolve, reject) => {
                 this._client.query(query, ids, (err, result) => {
@@ -146,7 +145,7 @@ class IdentifiablePostgresPersistence extends PostgresPersistence_1.PostgresPers
      */
     getOneById(correlationId, id) {
         return __awaiter(this, void 0, void 0, function* () {
-            let query = "SELECT * FROM " + this.quoteIdentifier(this._tableName) + " WHERE \"id\"=$1";
+            let query = "SELECT * FROM " + this.quotedTableName() + " WHERE \"id\"=$1";
             let params = [id];
             let item = yield new Promise((resolve, reject) => {
                 this._client.query(query, params, (err, result) => {
@@ -215,7 +214,7 @@ class IdentifiablePostgresPersistence extends PostgresPersistence_1.PostgresPers
             let params = this.generateParameters(row);
             let setParams = this.generateSetParameters(row);
             let values = this.generateValues(row);
-            let query = "INSERT INTO " + this.quoteIdentifier(this._tableName) + " (" + columns + ")"
+            let query = "INSERT INTO " + this.quotedTableName() + " (" + columns + ")"
                 + " VALUES (" + params + ")"
                 + " ON CONFLICT (\"id\") DO UPDATE SET " + setParams + " RETURNING *";
             let newItem = yield new Promise((resolve, reject) => {
@@ -250,7 +249,7 @@ class IdentifiablePostgresPersistence extends PostgresPersistence_1.PostgresPers
             let params = this.generateSetParameters(row);
             let values = this.generateValues(row);
             values.push(item.id);
-            let query = "UPDATE " + this.quoteIdentifier(this._tableName)
+            let query = "UPDATE " + this.quotedTableName()
                 + " SET " + params + " WHERE \"id\"=$" + values.length + " RETURNING *";
             let newItem = yield new Promise((resolve, reject) => {
                 this._client.query(query, values, (err, result) => {
@@ -285,7 +284,7 @@ class IdentifiablePostgresPersistence extends PostgresPersistence_1.PostgresPers
             let params = this.generateSetParameters(row);
             let values = this.generateValues(row);
             values.push(id);
-            let query = "UPDATE " + this.quoteIdentifier(this._tableName)
+            let query = "UPDATE " + this.quotedTableName()
                 + " SET " + params + " WHERE \"id\"=$" + values.length + " RETURNING *";
             let newItem = yield new Promise((resolve, reject) => {
                 this._client.query(query, values, (err, result) => {
@@ -313,7 +312,7 @@ class IdentifiablePostgresPersistence extends PostgresPersistence_1.PostgresPers
     deleteById(correlationId, id) {
         return __awaiter(this, void 0, void 0, function* () {
             let values = [id];
-            let query = "DELETE FROM " + this.quoteIdentifier(this._tableName)
+            let query = "DELETE FROM " + this.quotedTableName()
                 + " WHERE \"id\"=$1 RETURNING *";
             let oldItem = yield new Promise((resolve, reject) => {
                 this._client.query(query, values, (err, result) => {
@@ -340,7 +339,7 @@ class IdentifiablePostgresPersistence extends PostgresPersistence_1.PostgresPers
     deleteByIds(correlationId, ids) {
         return __awaiter(this, void 0, void 0, function* () {
             let params = this.generateParameters(ids);
-            let query = "DELETE FROM " + this.quoteIdentifier(this._tableName)
+            let query = "DELETE FROM " + this.quotedTableName()
                 + " WHERE \"id\" IN(" + params + ")";
             let count = yield new Promise((resolve, reject) => {
                 this._client.query(query, ids, (err, result) => {

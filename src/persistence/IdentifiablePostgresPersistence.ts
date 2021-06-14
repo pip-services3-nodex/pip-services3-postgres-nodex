@@ -23,7 +23,8 @@ import { PostgresPersistence } from './PostgresPersistence';
 
  * ### Configuration parameters ###
  * 
- * - collection:                  (optional) PostgreSQL collection name
+ * - table:                      (optional) PostgreSQL table name
+ * - schema:                     (optional) PostgreSQL schema name
  * - connection(s):    
  *   - discovery_key:             (optional) a key to retrieve the connection from [[https://pip-services3-nodex.github.io/pip-services3-components-nodex/interfaces/connect.idiscovery.html IDiscovery]]
  *   - host:                      host name or IP address
@@ -92,14 +93,11 @@ export class IdentifiablePostgresPersistence<T extends IIdentifiable<K>, K> exte
     /**
      * Creates a new instance of the persistence component.
      * 
-     * @param collection    (optional) a collection name.
+     * @param tableName    (optional) a table name.
+     * @param schemaName   (optional) a schema name.
      */
-    public constructor(tableName: string) {
-        super(tableName);
-
-        if (tableName == null) {
-            throw new Error("Table name could not be null");
-        }
+    public constructor(tableName: string, schemaName?: string) {
+        super(tableName, schemaName);
     }
 
     /** 
@@ -121,7 +119,7 @@ export class IdentifiablePostgresPersistence<T extends IIdentifiable<K>, K> exte
      */
     public async getListByIds(correlationId: string, ids: K[]): Promise<T[]> {
         let params = this.generateParameters(ids);
-        let query = "SELECT * FROM " + this.quoteIdentifier(this._tableName)
+        let query = "SELECT * FROM " + this.quotedTableName()
             + " WHERE \"id\" IN(" + params + ")";
 
         let items = await new Promise<any[]>((resolve, reject) => {
@@ -150,7 +148,7 @@ export class IdentifiablePostgresPersistence<T extends IIdentifiable<K>, K> exte
      * @returns                 a found data item or <code>null</code>.
      */
     public async getOneById(correlationId: string, id: K): Promise<T> {
-        let query = "SELECT * FROM " + this.quoteIdentifier(this._tableName) + " WHERE \"id\"=$1";
+        let query = "SELECT * FROM " + this.quotedTableName() + " WHERE \"id\"=$1";
         let params = [ id ];
 
         let item = await new Promise<any>((resolve, reject) => {
@@ -222,7 +220,7 @@ export class IdentifiablePostgresPersistence<T extends IIdentifiable<K>, K> exte
         let setParams = this.generateSetParameters(row);
         let values = this.generateValues(row);
 
-        let query = "INSERT INTO " + this.quoteIdentifier(this._tableName) + " (" + columns + ")"
+        let query = "INSERT INTO " + this.quotedTableName() + " (" + columns + ")"
             + " VALUES (" + params + ")"
             + " ON CONFLICT (\"id\") DO UPDATE SET " + setParams + " RETURNING *";
 
@@ -262,7 +260,7 @@ export class IdentifiablePostgresPersistence<T extends IIdentifiable<K>, K> exte
         let values = this.generateValues(row);
         values.push(item.id);
 
-        let query = "UPDATE " + this.quoteIdentifier(this._tableName)
+        let query = "UPDATE " + this.quotedTableName()
             + " SET " + params + " WHERE \"id\"=$" + values.length + " RETURNING *";
 
         let newItem = await new Promise<any>((resolve, reject) => {
@@ -302,7 +300,7 @@ export class IdentifiablePostgresPersistence<T extends IIdentifiable<K>, K> exte
         let values = this.generateValues(row);
         values.push(id);
 
-        let query = "UPDATE " + this.quoteIdentifier(this._tableName)
+        let query = "UPDATE " + this.quotedTableName()
             + " SET " + params + " WHERE \"id\"=$" + values.length + " RETURNING *";
 
         let newItem = await new Promise<any>((resolve, reject) => {
@@ -334,7 +332,7 @@ export class IdentifiablePostgresPersistence<T extends IIdentifiable<K>, K> exte
     public async deleteById(correlationId: string, id: K): Promise<T> {
         let values = [ id ];
 
-        let query = "DELETE FROM " + this.quoteIdentifier(this._tableName)
+        let query = "DELETE FROM " + this.quotedTableName()
             + " WHERE \"id\"=$1 RETURNING *";
 
         let oldItem = await new Promise<any>((resolve, reject) => {
@@ -364,7 +362,7 @@ export class IdentifiablePostgresPersistence<T extends IIdentifiable<K>, K> exte
      */
     public async deleteByIds(correlationId: string, ids: K[]): Promise<void> {
         let params = this.generateParameters(ids);
-        let query = "DELETE FROM " + this.quoteIdentifier(this._tableName)
+        let query = "DELETE FROM " + this.quotedTableName()
             + " WHERE \"id\" IN(" + params + ")";
 
         let count = await new Promise<number>((resolve, reject) => {

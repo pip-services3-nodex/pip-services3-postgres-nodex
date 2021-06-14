@@ -27,7 +27,8 @@ const IdentifiablePostgresPersistence_1 = require("./IdentifiablePostgresPersist
 
  * ### Configuration parameters ###
  *
- * - collection:                  (optional) PostgreSQL collection name
+ * - table:                      (optional) PostgreSQL table name
+ * - schema:                     (optional) PostgreSQL schema name
  * - connection(s):
  *   - discovery_key:             (optional) a key to retrieve the connection from [[https://pip-services3-nodex.github.io/pip-services3-components-nodex/interfaces/connect.idiscovery.html IDiscovery]]
  *   - host:                      host name or IP address
@@ -95,10 +96,11 @@ class IdentifiableJsonPostgresPersistence extends IdentifiablePostgresPersistenc
     /**
      * Creates a new instance of the persistence component.
      *
-     * @param collection    (optional) a collection name.
+     * @param tableName    (optional) a table name.
+     * @param schemaName    (optional) a schema name.
      */
-    constructor(tableName) {
-        super(tableName);
+    constructor(tableName, schemaName) {
+        super(tableName, schemaName);
     }
     /**
      * Adds DML statement to automatically create JSON(B) table
@@ -107,7 +109,11 @@ class IdentifiableJsonPostgresPersistence extends IdentifiablePostgresPersistenc
      * @param dataType type of the data column (default: JSONB)
      */
     ensureTable(idType = 'TEXT', dataType = 'JSONB') {
-        let query = "CREATE TABLE IF NOT EXISTS " + this.quoteIdentifier(this._tableName)
+        if (this._schemaName != null) {
+            let query = "CREATE SCHEMA IF NOT EXISTS " + this.quoteIdentifier(this._schemaName);
+            this.ensureSchema(query);
+        }
+        let query = "CREATE TABLE IF NOT EXISTS " + this.quotedTableName()
             + " (\"id\" " + idType + " PRIMARY KEY, \"data\" " + dataType + ")";
         this.ensureSchema(query);
     }
@@ -150,7 +156,7 @@ class IdentifiableJsonPostgresPersistence extends IdentifiablePostgresPersistenc
             if (data == null || id == null) {
                 return null;
             }
-            let query = "UPDATE " + this.quoteIdentifier(this._tableName) + " SET \"data\"=\"data\"||$2 WHERE \"id\"=$1 RETURNING *";
+            let query = "UPDATE " + this.quotedTableName() + " SET \"data\"=\"data\"||$2 WHERE \"id\"=$1 RETURNING *";
             let values = [id, data.getAsObject()];
             let newItem = yield new Promise((resolve, reject) => {
                 this._client.query(query, values, (err, result) => {

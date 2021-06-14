@@ -27,7 +27,8 @@ import { PostgresConnection } from '../connect/PostgresConnection';
  * 
  * ### Configuration parameters ###
  * 
- * - collection:                  (optional) PostgreSQL collection name
+ * - table:                      (optional) PostgreSQL table name
+ * - schema:                     (optional) PostgreSQL schema name
  * - connection(s):    
  *   - discovery_key:             (optional) a key to retrieve the connection from [[https://pip-services3-nodex.github.io/pip-services3-components-nodex/interfaces/connect.idiscovery.html IDiscovery]]
  *   - host:                      host name or IP address
@@ -104,7 +105,8 @@ import { PostgresConnection } from '../connect/PostgresConnection';
 export class PostgresPersistence<T> implements IReferenceable, IUnreferenceable, IConfigurable, IOpenable, ICleanable {
 
     private static _defaultConfig: ConfigParams = ConfigParams.fromTuples(
-        "collection", null,
+        "table", null,
+        "schema", null,
         "dependencies.connection", "*:connection:postgres:*:1.0",
 
         // connections.*
@@ -150,16 +152,24 @@ export class PostgresPersistence<T> implements IReferenceable, IUnreferenceable,
      * The PostgreSQL table object.
      */
     protected _tableName: string;
-
+    /**
+     * The PostgreSQL schema object.
+     */
+    protected _schemaName: string;
+    /**
+     * Maximum number of objects in data pages
+     */
     protected _maxPageSize: number = 100;
 
     /**
      * Creates a new instance of the persistence component.
      * 
      * @param tableName    (optional) a table name.
+     * @param schemaName   (optional) a schema name.
      */
-    public constructor(tableName?: string) {
+    public constructor(tableName?: string, schemaName?: string) {
         this._tableName = tableName;
+        this._schemaName = schemaName;
     }
 
     /**
@@ -177,6 +187,7 @@ export class PostgresPersistence<T> implements IReferenceable, IUnreferenceable,
 
         this._tableName = config.getAsStringWithDefault("collection", this._tableName);
         this._tableName = config.getAsStringWithDefault("table", this._tableName);
+        this._schemaName = config.getAsStringWithDefault("schema", this._schemaName);
     }
 
     /**
@@ -232,7 +243,12 @@ export class PostgresPersistence<T> implements IReferenceable, IUnreferenceable,
             builder += " UNIQUE";
         }
         
-        builder += " INDEX IF NOT EXISTS " + this.quoteIdentifier(name) + " ON " + this.quoteIdentifier(this._tableName);
+        let indexName = this.quoteIdentifier(name);
+        if (this._schemaName != null) {
+            indexName = this.quoteIdentifier(this._schemaName) + "." + indexName;
+        }
+
+        builder += " INDEX IF NOT EXISTS " + indexName + " ON " + this.quotedTableName();
 
         if (options.type) {
             builder += " " + options.type;
@@ -301,6 +317,18 @@ export class PostgresPersistence<T> implements IReferenceable, IUnreferenceable,
         return '"' + value + '"';
     }
 
+    protected quotedTableName(): string {
+        if (this._tableName == null) {
+            return null;
+        }
+
+        let builder = this.quoteIdentifier(this._tableName);
+        if (this._schemaName != null) {
+            builder += this.quoteIdentifier(this._schemaName) + "." + builder;
+        }
+        return builder;
+    }
+
     /**
 	 * Checks if the component is opened.
 	 * 
@@ -357,7 +385,8 @@ export class PostgresPersistence<T> implements IReferenceable, IUnreferenceable,
         await this.createSchema(correlationId);
 
         this._opened = true;
-        this._logger.debug(correlationId, "Connected to postgres database %s, collection %s", this._databaseName, this.quoteIdentifier(this._tableName));                        
+        this._logger.debug(correlationId, "Connected to postgres database %s, collection %s",
+            this._databaseName, this._tableName);                        
     }
 
     /**
@@ -397,7 +426,7 @@ export class PostgresPersistence<T> implements IReferenceable, IUnreferenceable,
             throw new Error('Table name is not defined');
         }
 
-        let query = "DELETE FROM " + this.quoteIdentifier(this._tableName);
+        let query = "DELETE FROM " + this.quotedTableName();
 
         return new Promise((resolve, reject) => {
             this._client.query(query, (err, result) => {
@@ -422,6 +451,7 @@ export class PostgresPersistence<T> implements IReferenceable, IUnreferenceable,
         }
     
         // Check if table exist to determine weither to auto create objects
+        // Todo: Add support for schema
         let query = "SELECT to_regclass('" + this._tableName + "')";
         let exist = await new Promise<boolean>((resolve, reject) => {
             this._client.query(query, (err, result) => {
@@ -538,7 +568,7 @@ export class PostgresPersistence<T> implements IReferenceable, IUnreferenceable,
         sort: any, select: any): Promise<DataPage<T>> {
         
         select = select != null ? select : "*"
-        let query = "SELECT " + select + " FROM " + this.quoteIdentifier(this._tableName);
+        let query = "SELECT " + select + " FROM " + this.quotedTableName();
 
         // Adjust max item count based on configuration
         paging = paging || new PagingParams();
@@ -576,7 +606,7 @@ export class PostgresPersistence<T> implements IReferenceable, IUnreferenceable,
         items = items.map(this.convertToPublic);
 
         if (pagingEnabled) {
-            let query = 'SELECT COUNT(*) AS count FROM ' + this.quoteIdentifier(this._tableName);
+            let query = 'SELECT COUNT(*) AS count FROM ' + this.quotedTableName();
             if (filter != null && filter != "") {
                 query += " WHERE " + filter;
             }
@@ -611,7 +641,7 @@ export class PostgresPersistence<T> implements IReferenceable, IUnreferenceable,
      * @returns                 a number of items that satisfy the filter.
      */
     protected async getCountByFilter(correlationId: string, filter: any): Promise<number> {
-        let query = 'SELECT COUNT(*) AS count FROM ' + this.quoteIdentifier(this._tableName);
+        let query = 'SELECT COUNT(*) AS count FROM ' + this.quotedTableName();
 
         if (filter && filter != "") {
             query += " WHERE " + filter;
@@ -652,7 +682,7 @@ export class PostgresPersistence<T> implements IReferenceable, IUnreferenceable,
         sort: any, select: any): Promise<T[]> {
 
         select = select != null ? select : "*"
-        let query = "SELECT " + select + " FROM " + this.quoteIdentifier(this._tableName);
+        let query = "SELECT " + select + " FROM " + this.quotedTableName();
 
         if (filter != null) {
             query += " WHERE " + filter;
@@ -690,7 +720,7 @@ export class PostgresPersistence<T> implements IReferenceable, IUnreferenceable,
      * @returns                 a random item that satisfies the filter.
      */
     protected async getOneRandom(correlationId: string, filter: any): Promise<T> {
-        let query = 'SELECT COUNT(*) AS count FROM ' + this.quoteIdentifier(this._tableName);
+        let query = 'SELECT COUNT(*) AS count FROM ' + this.quotedTableName();
         if (filter != null) {
             query += " WHERE " + filter;
         }
@@ -706,7 +736,7 @@ export class PostgresPersistence<T> implements IReferenceable, IUnreferenceable,
             });
         });
            
-        query = "SELECT * FROM " + this.quoteIdentifier(this._tableName);    
+        query = "SELECT * FROM " + this.quotedTableName();    
         if (filter != null) {
             query += " WHERE " + filter;
         }
@@ -753,7 +783,7 @@ export class PostgresPersistence<T> implements IReferenceable, IUnreferenceable,
         let params = this.generateParameters(row);
         let values = this.generateValues(row);
 
-        let query = "INSERT INTO " + this.quoteIdentifier(this._tableName)
+        let query = "INSERT INTO " + this.quotedTableName()
             + " (" + columns + ") VALUES (" + params + ") RETURNING *";
 
         let newItem = await new Promise<any>((resolve, reject) => {
@@ -784,7 +814,7 @@ export class PostgresPersistence<T> implements IReferenceable, IUnreferenceable,
      * @param filter            (optional) a filter JSON object.
      */
     public async deleteByFilter(correlationId: string, filter: any): Promise<void> {
-        let query = "DELETE FROM " + this.quoteIdentifier(this._tableName);
+        let query = "DELETE FROM " + this.quotedTableName();
         if (filter != null && filter != "") {
             query += " WHERE " + filter;
         }

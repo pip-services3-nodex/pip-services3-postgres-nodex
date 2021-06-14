@@ -18,7 +18,8 @@ import { IdentifiablePostgresPersistence } from './IdentifiablePostgresPersisten
 
  * ### Configuration parameters ###
  *
- * - collection:                  (optional) PostgreSQL collection name
+ * - table:                      (optional) PostgreSQL table name
+ * - schema:                     (optional) PostgreSQL schema name
  * - connection(s):
  *   - discovery_key:             (optional) a key to retrieve the connection from [[https://pip-services3-nodex.github.io/pip-services3-components-nodex/interfaces/connect.idiscovery.html IDiscovery]]
  *   - host:                      host name or IP address
@@ -86,9 +87,10 @@ export declare class IdentifiableJsonPostgresPersistence<T extends IIdentifiable
     /**
      * Creates a new instance of the persistence component.
      *
-     * @param collection    (optional) a collection name.
+     * @param tableName    (optional) a table name.
+     * @param schemaName    (optional) a schema name.
      */
-    constructor(tableName: string);
+    constructor(tableName: string, schemaName?: string);
     /**
      * Adds DML statement to automatically create JSON(B) table
      *
