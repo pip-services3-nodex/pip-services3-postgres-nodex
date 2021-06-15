@@ -18,5 +18,6 @@ Initial public release
 * Added IdentifiablePostgresPersistence
 * Added IdentifiablePostgresPersistence
 * Added PostgresPersistence
+* Added _autoGenerateId flag to IdentifiablePostgresPersistence
 
 

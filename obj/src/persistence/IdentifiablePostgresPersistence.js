@@ -99,6 +99,10 @@ class IdentifiablePostgresPersistence extends PostgresPersistence_1.PostgresPers
      */
     constructor(tableName, schemaName) {
         super(tableName, schemaName);
+        /**
+         * Flag to turn on automated string ID generation
+         */
+        this._autoGenerateId = true;
     }
     /**
      * Converts the given object from the public partial format.
@@ -184,7 +188,7 @@ class IdentifiablePostgresPersistence extends PostgresPersistence_1.PostgresPers
             }
             // Assign unique id
             let newItem = item;
-            if (newItem.id == null) {
+            if (newItem.id == null && this._autoGenerateId) {
                 newItem = Object.assign({}, newItem);
                 newItem.id = item.id || pip_services3_commons_nodex_1.IdGenerator.nextLong();
             }
@@ -205,7 +209,7 @@ class IdentifiablePostgresPersistence extends PostgresPersistence_1.PostgresPers
                 return null;
             }
             // Assign unique id
-            if (item.id == null) {
+            if (item.id == null && this._autoGenerateId) {
                 item = Object.assign({}, item);
                 item.id = pip_services3_commons_nodex_1.IdGenerator.nextLong();
             }

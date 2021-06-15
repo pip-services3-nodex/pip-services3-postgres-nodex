@@ -88,7 +88,11 @@ import { PostgresPersistence } from './PostgresPersistence';
  *     await persistence.deleteById("123", "1");
  */
 export class IdentifiablePostgresPersistence<T extends IIdentifiable<K>, K> extends PostgresPersistence<T>
-    implements IWriter<T, K>, IGetter<T, K>, ISetter<T> {
+    implements IWriter<T, K>, IGetter<T, K>, ISetter<T> {    
+    /**
+     * Flag to turn on automated string ID generation
+     */
+     protected _autoGenerateId: boolean = true;
 
     /**
      * Creates a new instance of the persistence component.
@@ -187,7 +191,7 @@ export class IdentifiablePostgresPersistence<T extends IIdentifiable<K>, K> exte
 
         // Assign unique id
         let newItem: any = item;
-        if (newItem.id == null) {
+        if (newItem.id == null && this._autoGenerateId) {
             newItem = Object.assign({}, newItem);
             newItem.id = item.id || IdGenerator.nextLong();
         }
@@ -209,7 +213,7 @@ export class IdentifiablePostgresPersistence<T extends IIdentifiable<K>, K> exte
         }
 
         // Assign unique id
-        if (item.id == null) {
+        if (item.id == null && this._autoGenerateId) {
             item = Object.assign({}, item);
             item.id = <any>IdGenerator.nextLong();
         }
