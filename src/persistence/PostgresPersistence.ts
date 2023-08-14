@@ -1,5 +1,4 @@
 /** @module persistence */
-import { captureRejectionSymbol } from 'node:events';
 import { IReferenceable } from 'pip-services3-commons-nodex';
 import { IUnreferenceable } from 'pip-services3-commons-nodex';
 import { IReferences } from 'pip-services3-commons-nodex';

@@ -152,6 +152,8 @@ export class IdentifiablePostgresPersistence<T extends IIdentifiable<K>, K> exte
      * @returns                 a found data item or <code>null</code>.
      */
     public async getOneById(correlationId: string, id: K): Promise<T> {
+        if (this.isEmpty(id))
+            return null;
         let query = "SELECT * FROM " + this.quotedTableName() + " WHERE \"id\"=$1";
         let params = [ id ];
 
@@ -191,7 +193,7 @@ export class IdentifiablePostgresPersistence<T extends IIdentifiable<K>, K> exte
 
         // Assign unique id
         let newItem: any = item;
-        if (newItem.id == null && this._autoGenerateId) {
+        if (this.isEmpty(newItem.id) && this._autoGenerateId) {
             newItem = Object.assign({}, newItem);
             newItem.id = item.id || IdGenerator.nextLong();
         }
@@ -213,7 +215,7 @@ export class IdentifiablePostgresPersistence<T extends IIdentifiable<K>, K> exte
         }
 
         // Assign unique id
-        if (item.id == null && this._autoGenerateId) {
+        if (this.isEmpty(item.id) && this._autoGenerateId) {
             item = Object.assign({}, item);
             item.id = <any>IdGenerator.nextLong();
         }
@@ -255,7 +257,7 @@ export class IdentifiablePostgresPersistence<T extends IIdentifiable<K>, K> exte
      * @returns                 the updated item.
      */
     public async update(correlationId: string, item: T): Promise<T> {
-        if (item == null || item.id == null) {
+        if (item == null || this.isEmpty(item.id)) {
             return null;
         }
 
@@ -295,7 +297,7 @@ export class IdentifiablePostgresPersistence<T extends IIdentifiable<K>, K> exte
      * @returns                 the updated item.
      */
     public async updatePartially(correlationId: string, id: K, data: AnyValueMap): Promise<T> {
-        if (data == null || id == null) {
+        if (data == null || this.isEmpty(id)) {
             return null;
         }
 
@@ -334,6 +336,9 @@ export class IdentifiablePostgresPersistence<T extends IIdentifiable<K>, K> exte
      * @returns                 the deleted item.
      */
     public async deleteById(correlationId: string, id: K): Promise<T> {
+        if (this.isEmpty(id))
+            return null;
+
         let values = [ id ];
 
         let query = "DELETE FROM " + this.quotedTableName()
@@ -381,5 +386,21 @@ export class IdentifiablePostgresPersistence<T extends IIdentifiable<K>, K> exte
         });
 
         this._logger.trace(correlationId, "Deleted %d items from %s", count, this._tableName);
+    }
+
+    /**
+     * Checks if value is empty
+     * @param value any value
+     * @returns true if value empty, other false
+     */
+    protected isEmpty(value: any) {
+        const type = typeof value;
+        if (value !== null && type === 'object' || type === 'function') {
+            const props = Object.keys(value);
+                if (props.length === 0) { 
+                    return true;
+                } 
+            } 
+        return !value;
     }
 }
